@@ -1,0 +1,98 @@
+import csv
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
+from email.message import EmailMessage
+
+
+sender_email = ""
+from_email = ""
+name_email = "Enrollment Team"
+password = ""
+
+
+with open("C:/EnrollmentFile/newenrollment_NewEnrollmentToday.csv") as csv_file:
+    csv_reader = csv.DictReader(csv_file, delimiter =',')
+    #parse CSV file and set variables based on column names
+	for row in csv_reader:
+        stFirst = row['stFirst']
+        stLast = row['stLast']
+        stID = row['stID']
+        p1First = row['p1First']
+        p1Last = row['p1Last']
+        p1ID = row['p1ID']
+        p2First = row['p2First']
+        p2Last = row['p2Last']
+        p2ID = row['p2ID']
+        curGrade = row['curGrade']
+        p1Email = row['p1Email']
+        p2Email = row['p2Email']
+
+		#replace all spaces in first and last name with %20 to keep url intact		
+        stName = stFirst.replace(" ", "%20") + "%20" + stLast.replace(" ", "%20")
+        p1Name = p1First.replace(" ", "%20") + "%20" + p1Last.replace(" ", "%20")
+        p2Name = p2First.replace(" ", "%20") + "%20" + p2Last.replace(" ", "%20")
+        
+		#replace spaces in current grade with %20 to keep url intact
+		gradeLevel = curGrade.replace(" ", "%20")
+        
+		# Create the prefilled url for each parent
+		# Create a prefilled link in the Google Form to get the required "idnumber" for each field in the form.  Each field should have a unique id number
+        prefillLink = "?usp=pp_url&entry.idnumber=" + stName + "&entry.idnumber=" + stID + "&entry.idnumber=" + p1Name + "&entry.idnumber=" + p1ID + "&entry.idnumber=" + p2Name + "&entry.idnumber=" + p2ID + "&entry.idnumber=" + gradeLevel
+        
+		# Get the form url through FormFacade
+		formURL = "https://formfacade.com/public/..." + prefillLink
+        #uncomment below to view 
+		#print(formURL)
+
+        html = """\
+            <html>
+                <body>
+                <p>Greetings and congratulations on joining the incredible Poly Prep community! 
+                     <br><br>
+                        In order to be well prepared for your child's arrival in September, 2023 we require some additional information.  This form will take approximately 5 minutes to complete and only needs to be completed by one parent/guardian.
+                        <br><br> Your unique survey link can be accessed by clicking on the following link:
+                        <a href=""" + formURL + """>Poly Prep Enrollment Form</a>
+                        <br><br>
+                        If you have any technology issues with the form, please reach out to ...  Thank you!
+                    </p>
+                    </body>
+                </html>
+                """
+
+
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "POLY PREP: Additional Enrollment Information Requested"
+        message["From"] = formataddr((name_email, from_email))
+        message["To"] = p1Email
+        message["cc"] = "cc email address"
+        messageText = MIMEText(html, "html")
+        message.attach(messageText)
+
+        messageP2 = MIMEMultipart("alternative")
+        messageP2["Subject"] = "POLY PREP: Additional Enrollment Information Requested"
+        messageP2["From"] = formataddr((name_email, from_email))
+        messageP2["To"] = p2Email
+        messageP2["cc"] = "cc email address"
+        messageP2.attach(messageText)
+        #message["Bcc"] = "bcc email address if needed"
+
+        # Create secure connection with server and send email
+        context = ssl.create_default_context()
+
+		# We use SMTP2GO for sending these messages.  Edit the parameters to match your service
+        if p1Email != "":
+            with smtplib.SMTP_SSL("mail.smtp2go.com", 465, context=context) as server:
+                server.login(sender_email, password)
+                server.sendmail(
+                    sender_email, p1Email, message.as_string())
+
+        if p2Email != "":
+            with smtplib.SMTP_SSL("mail.smtp2go.com", 465, context=context) as server:
+                server.login(sender_email, password)
+                server.sendmail(
+                    sender_email, p2Email, messageP2.as_string())
+
+    csv_file.close()
