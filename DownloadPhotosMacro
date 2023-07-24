@@ -1,0 +1,43 @@
+Notes:
+Spreadsheet should be formatted with information in the following 
+Column A should be the VC Person ID
+Column B should be the URL to the photo - sURI
+
+FolderName should be the location of where the files should download to.  May need to experiment a bit if using a Mac
+sPath - that takes the person ID field from column E of my spreadsheet (change that to whatever row you want) and renames the downloaded file to personid.jpg
+sURI - url for the file to download
+Column C is updated with success/error message for each file
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Const FolderName As String = "./folder"             
+
+Sub downloadJPGImages()
+
+ Set ws = ActiveWorkbook.Sheets("Sheet1")
+ lLastRow = ws.Range("A" & Rows.Count).End(xlUp).Row
+
+ Set oXMLHTTP = CreateObject("MSXML2.XMLHTTP.6.0")
+ Set oBinaryStream = CreateObject("ADODB.Stream")
+ adTypeBinary = 1
+ oBinaryStream.Type = adTypeBinary
+
+ For i = 2 To lLastRow
+  sPath = FolderName & ws.Range("A" & i).Value & ".jpg" 
+  sURI = ws.Range("B" & i).Value
+
+  On Error GoTo HTTPError
+  oXMLHTTP.Open "GET", sURI, False
+  oXMLHTTP.Send
+  aBytes = oXMLHTTP.responsebody
+  On Error GoTo 0
+
+  oBinaryStream.Open
+  oBinaryStream.Write aBytes
+  adSaveCreateOverWrite = 2
+  oBinaryStream.SaveToFile sPath, adSaveCreateOverWrite
+  oBinaryStream.Close
+
+  ws.Range("C" & i).Value = "File successfully downloaded as JPG"
+
+NextRow:
