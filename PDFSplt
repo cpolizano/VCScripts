@@ -1,0 +1,73 @@
+import fitz  # PyMuPDF
+import os  # For handling file paths
+import re  # For sanitizing filenames
+import csv  # For writing out the CSV file
+
+def sanitize_filename(text):
+    """Sanitize the text to be used as a valid filename."""
+    valid_filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', text)
+    return valid_filename.strip()
+
+def extract_text_by_rect(page, rect):
+    """Extract text from a page within the given rectangle."""
+    text = page.get_text("text", clip=rect).strip()
+    # Clean up the text
+    text = ' '.join(text.split())
+    return text
+
+def split_pdf_by_name(pdf_path, output_folder, csv_path):
+    """Split a PDF into individual pages named after the student's name and create a CSV file listing them."""
+    pdf_document = fitz.open(pdf_path)
+    csv_file = open(csv_path, 'w', newline='', encoding='utf-8')  # Open the CSV file
+    csv_writer = csv.writer(csv_file)  # Create a CSV writer
+    csv_writer.writerow(['Student Name', 'Class Of'])  # Write the header row
+
+    for page_number in range(len(pdf_document)):
+        page = pdf_document[page_number]
+
+        # Rectangles that worked
+        name_rect = fitz.Rect(10, 10, 250, 50)
+        class_of_rect = fitz.Rect(70, 60, 250, 60)
+
+        # Extract student name and "Class of" information
+        student_name = extract_text_by_rect(page, name_rect)
+        class_of = extract_text_by_rect(page, class_of_rect)
+
+        # Sanitize the student name and class of to create a valid filename
+        student_name_sanitized = sanitize_filename(student_name)
+        class_of_sanitized = sanitize_filename(class_of)
+
+        # Create the output filename
+        output_filename = f"{student_name_sanitized}_{class_of_sanitized}.pdf"
+
+        # Path for the output file
+        output_path = os.path.join(output_folder, output_filename)
+
+        # Check if the file already exists
+        if os.path.exists(output_path):
+            # File exists, append the current page to it incrementally
+            existing_pdf = fitz.open(output_path)
+            existing_pdf.insert_pdf(pdf_document, from_page=page_number, to_page=page_number)
+            existing_pdf.save(output_path, incremental=True,
+                              encryption=fitz.PDF_ENCRYPT_KEEP)  # Perform an incremental save
+            existing_pdf.close()
+            print(f"Appended page to: {output_filename}")
+        else:
+            # File does not exist, create a new PDF with the current page
+            writer = fitz.open()
+            writer.insert_pdf(pdf_document, from_page=page_number, to_page=page_number)
+            writer.save(output_path)
+            writer.close()
+            # Write the student info to the CSV file only for new files
+            csv_writer.writerow([student_name_sanitized, class_of_sanitized])
+            print(f"Saved new file: {output_filename}")
+
+    # Close the PDF document and the CSV file
+    pdf_document.close()
+    csv_file.close()
+
+# Usage example
+pdf_path = 'transcripts.pdf'  # Replace with the path to your PDF
+output_folder = ''  # Replace with your desired output directory
+csv_path = os.path.join(output_folder, 'student_files.csv')  # Path for the CSV file
+split_pdf_by_name(pdf_path, output_folder, csv_path)
