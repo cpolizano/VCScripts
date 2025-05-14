@@ -1,0 +1,34 @@
+import pandas as pd
+import requests
+
+# Load your Excel file
+input_file = "getredirect.xlsx"         
+output_file = "output_with_redirects.xlsx"
+
+# Read the Excel file
+df = pd.read_excel(input_file)
+
+# Prepare a list to store final (redirected) URLs
+redirected_urls = []
+
+# Loop through each row
+for index, row in df.iterrows():
+    original_url = row['URL'] if 'URL' in df.columns else row[2]  # Adjust if your Excel file has headers
+    try:
+        response = requests.get(original_url, allow_redirects=True, timeout=10)
+        redirected_urls.append(response.url)
+    except Exception as e:
+        redirected_urls.append(f"Error: {e}")
+
+# Add the redirected URLs to column C
+if len(df.columns) < 3:
+    # Ensure there's space for column C
+    for _ in range(3 - len(df.columns)):
+        df[f'Unnamed_{len(df.columns)}'] = ""
+
+df.iloc[:, 2] = redirected_urls  # Column C is index 2
+
+# Save to new Excel file
+df.to_excel(output_file, index=False)
+
+print(f"Done! Redirected URLs written to column C and saved to {output_file}")
